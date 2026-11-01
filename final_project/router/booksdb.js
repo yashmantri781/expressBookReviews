@@ -1,14 +1,81 @@
-let books = {
-      1: {"author": "Chinua Achebe","title": "Things Fall Apart", "reviews": {} },
-      2: {"author": "Hans Christian Andersen","title": "Fairy tales", "reviews": {} },
-      3: {"author": "Dante Alighieri","title": "The Divine Comedy", "reviews": {} },
-      4: {"author": "Unknown","title": "The Epic Of Gilgamesh", "reviews": {} },
-      5: {"author": "Unknown","title": "The Book Of Job", "reviews": {} },
-      6: {"author": "Unknown","title": "One Thousand and One Nights", "reviews": {} },
-      7: {"author": "Unknown","title": "Nj\u00e1l's Saga", "reviews": {} },
-      8: {"author": "Jane Austen","title": "Pride and Prejudice", "reviews": {} },
-      9: {"author": "Honor\u00e9 de Balzac","title": "Le P\u00e8re Goriot", "reviews": {} },
-      10: {"author": "Samuel Beckett","title": "Molloy, Malone Dies, The Unnamable, the trilogy", "reviews": {} }
-}
 
-module.exports=books;
+const express = require('express');
+const jwt = require('jsonwebtoken');
+const books = require('./booksdb.js');
+
+const regd_users = express.Router();
+let users = [];
+
+const isValid = (username) =>
+    users.some(user => user.username === username);
+
+const authenticatedUser = (username, password) =>
+    users.some(user => user.username === username && user.password === password);
+
+// Login
+regd_users.post('/login', (req, res) => {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.status(400).json({ message: 'Username and password are required' });
+    }
+
+    if (!authenticatedUser(username, password)) {
+        return res.status(401).json({ message: 'Invalid username or password' });
+    }
+
+    const accessToken = jwt.sign({ username }, 'access', { expiresIn: '1h' });
+
+    return res.status(200).json({
+        message: 'User successfully logged in',
+        accessToken
+    });
+});
+
+// Add or modify review
+regd_users.put('/auth/review/:isbn', (req, res) => {
+    const isbn = req.params.isbn;
+    const username = req.user.username;
+    const review = req.body.review;
+
+    if (!books[isbn]) {
+        return res.status(404).json({ message: 'Book not found' });
+    }
+
+    if (!review) {
+        return res.status(400).json({ message: 'Review is required' });
+    }
+
+    books[isbn].reviews[username] = review;
+
+    return res.status(200).json({
+        message: 'Review added or updated successfully',
+        reviews: books[isbn].reviews
+    });
+});
+
+// Delete review
+regd_users.delete('/auth/review/:isbn', (req, res) => {
+    const isbn = req.params.isbn;
+    const username = req.user.username;
+
+    if (!books[isbn]) {
+        return res.status(404).json({ message: 'Book not found' });
+    }
+
+    if (!books[isbn].reviews[username]) {
+        return res.status(404).json({ message: 'Review not found' });
+    }
+
+    delete books[isbn].reviews[username];
+
+    return res.status(200).json({
+        message: 'Review deleted successfully',
+        reviews: books[isbn].reviews
+    });
+});
+
+module.exports.authenticated = regd_users;
+module.exports.authenticatedUser = authenticatedUser;
+module.exports.isValid = isValid;
+module.exports.users = users;

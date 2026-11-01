@@ -1,0 +1,5 @@
+﻿COMMAND:
+PUT /customer/auth/review/1
+
+OUTPUT:
+{"message":"Review added or updated successfully","reviews":{"student2":"Excellent book! A very interesting read."}}
